@@ -4,7 +4,6 @@
 *Brazilian public real estate data, ready for analysis. [English below](#english).*
 
 [![CI](https://github.com/Rafaxdz-1000/dadosimob/actions/workflows/ci.yml/badge.svg)](https://github.com/Rafaxdz-1000/dadosimob/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/dadosimob.svg)](https://pypi.org/project/dadosimob/)
 [![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
 
 Prefeituras e órgãos públicos publicam dados valiosos sobre imóveis, mas cada fonte tem seu formato: planilhas com uma aba por mês, cabeçalhos que mudam de um ano para outro, números no formato brasileiro e links que trocam de endereço. O `dadosimob` resolve isso e entrega um `pandas.DataFrame` limpo e padronizado.
@@ -12,8 +11,10 @@ Prefeituras e órgãos públicos publicam dados valiosos sobre imóveis, mas cad
 ## Instalação
 
 ```bash
-pip install dadosimob
+pip install git+https://github.com/Rafaxdz-1000/dadosimob
 ```
+
+O pacote ainda não está no PyPI; até lá, a instalação é direto do GitHub.
 
 ## Fontes disponíveis
 
@@ -92,6 +93,10 @@ Código sob [MIT](LICENSE). Os dados pertencem aos órgãos que os publicam; con
 `dadosimob` downloads Brazilian public real estate datasets and returns clean, standardized `pandas` DataFrames.
 
 The first source is **ITBI São Paulo**: the property transfer tax declarations paid in the city of São Paulo since 2006, published monthly by the city's Finance Department as yearly Excel files with one sheet per month and headers that drift over time. `dadosimob` finds the current file links, caches downloads, detects header rows (and reuses them for sheets published without one), maps columns to stable snake_case names, parses Brazilian number and date formats, keeps the leading zeros of zip codes and property IDs, classifies property types and computes price per m² for whole-property transfers.
+
+```bash
+pip install git+https://github.com/Rafaxdz-1000/dadosimob   # not on PyPI yet
+```
 
 ```python
 from dadosimob.itbi import sp
