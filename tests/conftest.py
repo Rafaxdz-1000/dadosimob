@@ -14,13 +14,24 @@ HEADERS = [
 ]
 
 
-def _row(sql, rua, valor, data, area_c, area_t, uso, natureza="1.Compra e venda"):
+def _row(sql, rua, valor, data, area_c, area_t, uso, natureza="1.Compra e venda", proporcao=100):
     venal = 400000.0
     return [
-        sql, rua, 100, None, "MOOCA", None, 3104000, natureza, valor, data, venal, 100,
+        sql, rua, 100, None, "MOOCA", None, 3104000, natureza, valor, data, venal, proporcao,
         venal, valor, "Nenhum", 0, 7, 12345, "Normal", area_t, 10, 0.01, area_c, 64, uso,
         "2B", "RESIDENCIAL VERTICAL - PADRÃO B", 2010,
     ]
+
+
+def _save(path, sheets):
+    wb = Workbook()
+    wb.remove(wb.active)
+    for name, rows in sheets:
+        ws = wb.create_sheet(name)
+        for row in rows:
+            ws.append(row)
+    wb.save(path)
+    return path
 
 
 @pytest.fixture
@@ -55,3 +66,23 @@ def workbook(tmp_path):
     path = tmp_path / "itbi_2024.xlsx"
     wb.save(path)
     return path
+
+
+@pytest.fixture
+def edge_workbook(tmp_path):
+    """Quirks found in the official 2024 file."""
+    return _save(tmp_path / "itbi_edge.xlsx", [
+        # JAN-2024 and OUT-2024 of the official file have no header row: data starts at row 0.
+        ("JAN-2024", [
+            _row(1000100011, "R JUVENTUS", 500000.0, datetime(2024, 1, 10), 50, 1000,
+                 "APARTAMENTO EM CONDOMÍNIO (EXCETO VAGA)"),
+            # A unit sold on the parent lot of a new building: a 0.25% share of the land.
+            _row(1000100099, "R DO LOTE MAE", 400000.0, datetime(2024, 1, 12), 0, 8000,
+                 "TERRENO", proporcao=0.25),
+        ]),
+        ("FEV-2024", [HEADERS, _row(1000100022, "R TAQUARI", 600000.0, datetime(2024, 2, 1), 60, 200,
+                                    "RESIDÊNCIA")]),
+        ("MAR-2024", [["resumo", 1, 2], ["total", 3, 4]]),  # monthly name, unknown layout
+        ("ABR-2024", [["x"] * len(HEADERS), ["y"] * len(HEADERS)]),  # right width, no numbers
+        ("Tabela de USOS", [["Código", "Descrição"], [64, "APARTAMENTO"]]),
+    ])

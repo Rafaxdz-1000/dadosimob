@@ -21,6 +21,7 @@ from typing import Iterable
 from urllib.parse import urljoin
 
 import pandas as pd
+import requests
 
 from .. import _http
 from .._text import normalize_label, parse_br_date, parse_br_number
@@ -62,6 +63,11 @@ COLUMNS: dict[str, tuple[str, ...]] = {
     "descricao_padrao": ("descricao do padrao",),
     "acc_iptu": ("acc iptu", "acc"),
 }
+
+# Excel stores these codes as numbers and drops their leading zeros.
+# SQL: setor (3) + quadra (3) + lote (4) + digito (1). Every CEP in the city starts with 0.
+CODE_WIDTHS = {"sql": 11, "cep": 8}
+_CODE_PUNCT = re.compile(r"[\s./-]")
 
 NUMERIC = (
     "valor_transacao", "valor_venal_referencia", "valor_venal_referencia_proporcional",
@@ -139,13 +145,43 @@ def list_files(fmt: str = "xlsx") -> list[ItbiFile]:
 
 
 def download(year: int, *, cache_dir: Path | str | None = None, force: bool = False) -> Path:
-    """Download the workbook for ``year`` (cached) and return its local path."""
-    matches = [f for f in list_files() if f.year == year]
-    if not matches:
-        raise ValueError(f"Ano {year} não encontrado em {SOURCE_PAGE}")
-    url = matches[0].url
+    """Download the workbook for ``year`` (cached) and return its local path.
+
+    The source page is read on every call, so a newly published file is picked up.
+    When the page is unreachable or does not list the year, the most recent cached
+    copy is used instead, with a warning.
+    """
+    cache = Path(cache_dir) if cache_dir else _http.default_cache_dir()
     name = f"itbi_sp_{year}.xlsx"
-    return _http.download(url, cache_dir=Path(cache_dir) if cache_dir else None, filename=name, force=force)
+    try:
+        url = _year_url(year)
+    except (requests.RequestException, RuntimeError):
+        cached = _cached_copy(cache, name)
+        if cached is None:
+            raise
+        log.warning("Página da Fazenda inacessível; usando a cópia em cache %s", cached)
+        return cached
+    if url is None:
+        cached = _cached_copy(cache, name)
+        if cached is None:
+            raise ValueError(f"Ano {year} não encontrado em {SOURCE_PAGE}")
+        log.warning("Ano %s não listado em %s; usando a cópia em cache %s", year, SOURCE_PAGE, cached)
+        return cached
+    return _http.download(url, cache_dir=cache, filename=name, force=force)
+
+
+def _year_url(year: int) -> str | None:
+    # The page occasionally comes back without a year that is there a moment later.
+    for _ in range(2):
+        match = next((f for f in list_files() if f.year == year), None)
+        if match:
+            return match.url
+    return None
+
+
+def _cached_copy(cache: Path, name: str) -> Path | None:
+    copies = sorted(cache.glob(f"*_{name}"), key=lambda p: p.stat().st_mtime)
+    return copies[-1] if copies else None
 
 
 # ── Parsing ──────────────────────────────────────────────────────────────────
@@ -189,12 +225,21 @@ def _find_header(raw: pd.DataFrame, max_rows: int = 15) -> int | None:
     return None
 
 
-def _parse_sheet(raw: pd.DataFrame, period: date | None) -> pd.DataFrame | None:
-    header_row = _find_header(raw)
-    if header_row is None:
-        return None
-    mapping = map_columns(raw.iloc[header_row].tolist())
-    body = raw.iloc[header_row + 1:, list(mapping)].copy()
+def _parse_sheet(raw: pd.DataFrame, period: date | None, header: list | None = None) -> pd.DataFrame | None:
+    """Parse one monthly sheet.
+
+    ``header`` is used for sheets that have no header row of their own: the data
+    starts at the first row and the columns follow the other sheets of the file.
+    """
+    if header is None:
+        header_row = _find_header(raw)
+        if header_row is None:
+            return None
+        header, start = raw.iloc[header_row].tolist(), header_row + 1
+    else:
+        start = 0
+    mapping = map_columns(header)
+    body = raw.iloc[start:, list(mapping)].copy()
     body.columns = [mapping[i] for i in mapping]
     body = body.dropna(how="all")
     for col in NUMERIC:
@@ -204,17 +249,41 @@ def _parse_sheet(raw: pd.DataFrame, period: date | None) -> pd.DataFrame | None:
         body["data_transacao"] = pd.to_datetime(body["data_transacao"].map(parse_br_date), errors="coerce")
     for col in ("sql", "cep", "numero", "uso_iptu", "padrao_iptu", "acc_iptu", "cartorio", "matricula"):
         if col in body:
-            body[col] = body[col].map(_as_code).astype("string")
+            body[col] = body[col].map(lambda v, w=CODE_WIDTHS.get(col): _as_code(v, w)).astype("string")
     body.insert(0, "mes_referencia", pd.Timestamp(period) if period else pd.NaT)
     return body
 
 
-def _as_code(value: object) -> str | None:
+def _first_header(sheets: dict[str, pd.DataFrame]) -> list | None:
+    """Header row of the first sheet that has one."""
+    for raw in sheets.values():
+        row = _find_header(raw)
+        if row is not None:
+            return raw.iloc[row].tolist()
+    return None
+
+
+def _parse_headerless(raw: pd.DataFrame, period: date, header: list | None, name: str) -> pd.DataFrame | None:
+    """Read a monthly sheet that lost its header row, if its layout matches the other sheets."""
+    if header is not None and raw.shape[1] == len(header):
+        parsed = _parse_sheet(raw, period, header=header)
+        if parsed is not None and not parsed.empty and parsed["valor_transacao"].notna().mean() >= 0.5:
+            log.info("Aba %s sem cabeçalho: usando o cabeçalho das outras abas", name)
+            return parsed
+    log.warning("Aba %s ignorada: não tem cabeçalho e o conteúdo não bate com as colunas das outras abas", name)
+    return None
+
+
+def _as_code(value: object, width: int | None = None) -> str | None:
+    """Codes as text. With ``width``, restores the leading zeros Excel drops."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
     if isinstance(value, float) and value.is_integer():
-        return str(int(value))
+        value = int(value)
     text = str(value).strip()
+    digits = _CODE_PUNCT.sub("", text)
+    if width and digits.isdigit() and len(digits) <= width:
+        return digits.zfill(width)
     return text or None
 
 
@@ -246,14 +315,18 @@ def read(
     path = download(source, cache_dir=cache_dir) if isinstance(source, int) else Path(source)
     wanted = set(months) if months else None
     sheets = pd.read_excel(path, sheet_name=None, header=None, dtype=object)
+    header = _first_header(sheets)
     frames = []
     for name, raw in sheets.items():
         period = sheet_period(str(name))
         if wanted and (period is None or period.month not in wanted):
             continue
         parsed = _parse_sheet(raw, period)
+        if parsed is None and period is not None:
+            parsed = _parse_headerless(raw, period, header, str(name))
         if parsed is None:
-            log.debug("Aba ignorada (sem cabeçalho de transações): %s", name)
+            if period is None:
+                log.debug("Aba ignorada (sem cabeçalho de transações): %s", name)
             continue
         log.info("Aba %s: %d linhas", name, len(parsed))
         frames.append(parsed)
@@ -273,7 +346,11 @@ def _price_per_m2(df: pd.DataFrame) -> pd.Series:
     built = df.get("area_construida_m2", pd.Series(float("nan"), index=df.index))
     land = df.get("area_terreno_m2", pd.Series(float("nan"), index=df.index))
     area = built.where(built > 0, land.where(df["tipo_imovel"] == "terreno"))
-    return (price / area.where(area > 0)).round(2)
+    # A partial transfer (e.g. a unit sold on the parent lot of a new building) is priced
+    # for a share, but the areas describe the whole property: no price per m² is possible.
+    share = df.get("proporcao_transmitida", pd.Series(float("nan"), index=df.index))
+    whole = share.isna() | (share >= 100)
+    return (price / area.where((area > 0) & whole)).round(2)
 
 
 def clean(

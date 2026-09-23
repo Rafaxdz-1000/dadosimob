@@ -1,7 +1,9 @@
+import logging
 from datetime import date
 
 import pandas as pd
 import pytest
+import requests
 
 from dadosimob._text import parse_br_date, parse_br_number
 from dadosimob.itbi import sp
@@ -14,9 +16,37 @@ def test_read_workbook(workbook):
     row = df.iloc[1]
     assert row["valor_transacao"] == 1_200_000.0
     assert row["data_transacao"] == pd.Timestamp("2024-01-15")
-    assert row["sql"] == "1000100022"
-    assert row["cep"] == "3104000"
     assert (df["codigo_ibge"] == "3550308").all()
+
+
+def test_codes_keep_leading_zeros(workbook):
+    row = sp.read(workbook).iloc[1]
+    assert row["sql"] == "01000100022"  # the SQL has 11 digits
+    assert row["cep"] == "03104000"  # every CEP in the city starts with 0
+
+
+def test_sheet_without_header_reuses_the_header_of_other_sheets(edge_workbook):
+    df = sp.read(edge_workbook)
+    jan = df[df["mes_referencia"] == pd.Timestamp("2024-01-01")]
+    assert len(jan) == 2
+    assert jan.iloc[0]["logradouro"] == "R JUVENTUS"
+    assert jan.iloc[0]["valor_transacao"] == 500_000.0
+    assert df.iloc[0]["logradouro"] == "R JUVENTUS"  # sheet order is kept
+
+
+@pytest.mark.parametrize("sheet", ["MAR-2024", "ABR-2024"])
+def test_monthly_sheet_that_cannot_be_read_is_skipped_with_a_warning(edge_workbook, caplog, sheet):
+    with caplog.at_level(logging.WARNING, logger="dadosimob"):
+        df = sp.read(edge_workbook)
+    assert set(df["mes_referencia"].dt.month) == {1, 2}
+    assert any(sheet in r.getMessage() for r in caplog.records if r.levelno == logging.WARNING)
+
+
+def test_partial_transfer_has_no_price_per_m2(edge_workbook):
+    df = sp.read(edge_workbook)
+    unit = df[df["logradouro"] == "R DO LOTE MAE"].iloc[0]
+    assert unit["proporcao_transmitida"] == 0.25
+    assert pd.isna(unit["preco_m2"])  # the file has no area for the unit itself
 
 
 def test_columns_are_canonical(workbook):
@@ -89,6 +119,38 @@ def test_parse_source_page():
     assert xlsx[2024] == "https://prefeitura.sp.gov.br/cidade/secretarias/upload/fazenda/arquivos/itbi/GUIAS-DE-ITBI-PAGAS-2024.xlsx"
     assert xlsx[2026].endswith("27082026-xls-xlsx")
     assert xlsx[2019].endswith("GUIAS_DE_ITBI_PAGAS_(2019).xlsx")  # year in folder name must not confuse
+
+
+def test_download_retries_when_the_page_misses_the_year(monkeypatch, tmp_path):
+    calls = []
+
+    def flaky_list_files():
+        calls.append(1)
+        return [] if len(calls) == 1 else [sp.ItbiFile(2024, "https://example.org/2024.xlsx", "xlsx")]
+
+    monkeypatch.setattr(sp, "list_files", flaky_list_files)
+    monkeypatch.setattr(sp._http, "download", lambda url, **kw: tmp_path / "baixado.xlsx")
+    assert sp.download(2024, cache_dir=tmp_path) == tmp_path / "baixado.xlsx"
+    assert len(calls) == 2
+
+
+def test_download_uses_the_cached_copy_when_the_page_is_unreachable(monkeypatch, tmp_path, caplog):
+    cached = tmp_path / "abc1234567_itbi_sp_2024.xlsx"
+    cached.write_bytes(b"xlsx")
+
+    def unreachable():
+        raise requests.ConnectionError("sem rede")
+
+    monkeypatch.setattr(sp, "list_files", unreachable)
+    with caplog.at_level(logging.WARNING, logger="dadosimob"):
+        assert sp.download(2024, cache_dir=tmp_path) == cached
+    assert "cache" in caplog.text
+
+
+def test_download_without_page_or_cache_raises(monkeypatch, tmp_path):
+    monkeypatch.setattr(sp, "list_files", lambda: [])
+    with pytest.raises(ValueError, match="2024"):
+        sp.download(2024, cache_dir=tmp_path)
 
 
 @pytest.mark.network

@@ -45,3 +45,7 @@ markers = ["network: testes que acessam a internet (rode com -m network)"]
 [tool.ruff]
 line-length = 110
 target-version = "py310"
+
+[tool.ruff.lint]
+# Explicit, so a new ruff release (CI installs the latest) cannot turn the build red.
+select = ["E4", "E7", "E9", "F"]

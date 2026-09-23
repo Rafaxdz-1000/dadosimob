@@ -31,10 +31,7 @@ from dadosimob.itbi import sp
 df = sp.read(2024)                    # baixa (com cache) e padroniza o ano inteiro
 vendas = sp.clean(df, only_sales=True) # remove valores implausíveis e mantém só compra e venda
 
-(vendas[vendas.tipo_imovel == "apartamento"]
-    .groupby("bairro")["preco_m2"].median()
-    .sort_values(ascending=False)
-    .head(10))
+vendas.groupby("tipo_imovel")["preco_m2"].median()
 ```
 
 Outras formas:
@@ -58,15 +55,20 @@ Cada linha é uma Declaração de Transação Imobiliária (DTI) paga no mês de
 
 * `mes_referencia`: mês em que o imposto foi pago (a aba de origem)
 * `tipo_imovel`: `apartamento`, `casa`, `terreno`, `comercial`, `industrial`, `garagem` ou `outro`
-* `preco_m2`: valor da transação dividido pela área construída (ou pela área do terreno, no caso de terrenos)
+* `preco_m2`: valor da transação dividido pela área construída (ou pela área do terreno, no caso de terrenos), só quando o imóvel inteiro é transmitido
 * `codigo_ibge`: código IBGE do município
 
-Números no formato brasileiro (`1.234,56`) e datas em texto ou no formato do Excel são convertidos automaticamente.
+Números no formato brasileiro (`1.234,56`) e datas em texto ou no formato do Excel são convertidos automaticamente. `cep` (8 dígitos) e `sql` (11 dígitos) voltam como texto, com os zeros à esquerda que o Excel apaga.
+
+Algumas abas do arquivo oficial vêm sem a linha de cabeçalho (em 2024, janeiro e outubro). Nesses casos a biblioteca usa o cabeçalho das outras abas do mesmo arquivo. Se uma aba mensal não puder ser lida, ela gera um aviso (`logging.WARNING`) em vez de sumir em silêncio.
 
 ### Boas práticas com o dado
 
 * A data de pagamento do ITBI (`mes_referencia`) pode ser meses depois da `data_transacao`. Para séries de preço, prefira `data_transacao`.
 * `valor_transacao` é declarado pelo contribuinte. `clean()` remove extremos, mas vale olhar a distribuição antes de concluir algo.
+* Em 2024, quase metade das compras e vendas transmitiu só uma fração do imóvel (`proporcao_transmitida` abaixo de 100), como a unidade na planta registrada no lote-mãe, que pode aparecer como `terreno`. O arquivo não traz a área da fração, então `preco_m2` fica vazio nesses casos.
+* A área é a área construída do cadastro do IPTU, não a área útil dos anúncios. Não compare `preco_m2` direto com preço de portal.
+* `bairro` é texto livre e vem vazio em boa parte das linhas. Para recortes geográficos, prefira o CEP.
 * Os arquivos oficiais não trazem transações de imóveis rurais nem as pagas via PPI.
 * Os arquivos oficiais não contêm CPF ou CNPJ das partes.
 
@@ -89,13 +91,13 @@ Código sob [MIT](LICENSE). Os dados pertencem aos órgãos que os publicam; con
 
 `dadosimob` downloads Brazilian public real estate datasets and returns clean, standardized `pandas` DataFrames.
 
-The first source is **ITBI São Paulo**: every paid property transfer tax declaration in the city of São Paulo since 2006, published monthly by the city's Finance Department as yearly Excel files with one sheet per month and headers that drift over time. `dadosimob` finds the current file links, caches downloads, detects header rows, maps columns to stable snake_case names, parses Brazilian number and date formats, classifies property types and computes price per m².
+The first source is **ITBI São Paulo**: the property transfer tax declarations paid in the city of São Paulo since 2006, published monthly by the city's Finance Department as yearly Excel files with one sheet per month and headers that drift over time. `dadosimob` finds the current file links, caches downloads, detects header rows (and reuses them for sheets published without one), maps columns to stable snake_case names, parses Brazilian number and date formats, keeps the leading zeros of zip codes and property IDs, classifies property types and computes price per m² for whole-property transfers.
 
 ```python
 from dadosimob.itbi import sp
 
 df = sp.clean(sp.read(2024), only_sales=True)
-df.groupby("bairro")["preco_m2"].median()
+df.groupby("tipo_imovel")["preco_m2"].median()
 ```
 
-Column names are kept in Portuguese to match the source documentation. Contributions for other cities are very welcome.
+Column names are kept in Portuguese to match the source documentation. The area behind `preco_m2` is the built area from the property tax registry, not the usable area quoted in listings, and `bairro` is free text that is often empty. Contributions for other cities are very welcome.
