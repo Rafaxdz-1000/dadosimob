@@ -79,6 +79,16 @@ def workbook_2019(tmp_path):
 
 
 @pytest.fixture
+def workbook_typo(tmp_path):
+    """FEV-2026 of the official file spells the header as "Descrição do pardão (IPTU)"."""
+    headers = ["Descrição do pardão (IPTU)" if h == "Descrição do padrão (IPTU)" else h for h in HEADERS]
+    return _save(tmp_path / "itbi_2026.xlsx", [
+        ("FEV-2026", [headers, _row(1000100011, "R JUVENTUS", 500000.0, datetime(2026, 2, 10), 50, 1000,
+                                    "APARTAMENTO EM CONDOMÍNIO (EXCETO VAGA)")]),
+    ])
+
+
+@pytest.fixture
 def edge_workbook(tmp_path):
     """Quirks found in the official 2024 file."""
     return _save(tmp_path / "itbi_edge.xlsx", [

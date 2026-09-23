@@ -60,7 +60,7 @@ COLUMNS: dict[str, tuple[str, ...]] = {
     "uso_iptu": ("uso iptu",),
     "descricao_uso": ("descricao do uso",),
     "padrao_iptu": ("padrao iptu",),
-    "descricao_padrao": ("descricao do padrao",),
+    "descricao_padrao": ("descricao do padrao", "descricao do pardao"),  # FEV-2026 misspells it
     "acc_iptu": ("acc iptu", "acc"),
 }
 
