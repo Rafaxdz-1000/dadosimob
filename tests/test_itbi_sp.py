@@ -42,6 +42,13 @@ def test_monthly_sheet_that_cannot_be_read_is_skipped_with_a_warning(edge_workbo
     assert any(sheet in r.getMessage() for r in caplog.records if r.levelno == logging.WARNING)
 
 
+def test_padrao_description_labeled_as_acc_goes_to_its_own_column(workbook_2019):
+    df = sp.read(workbook_2019)
+    assert "descricao_padrao" in df.columns
+    assert df.loc[0, "descricao_padrao"] == "RESIDENCIAL VERTICAL - PADRÃO B"
+    assert df.loc[0, "acc_iptu"] == "2010"  # the real ACC is the last column
+
+
 def test_partial_transfer_has_no_price_per_m2(edge_workbook):
     df = sp.read(edge_workbook)
     unit = df[df["logradouro"] == "R DO LOTE MAE"].iloc[0]

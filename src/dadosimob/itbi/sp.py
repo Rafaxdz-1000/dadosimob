@@ -213,6 +213,12 @@ def map_columns(headers: Iterable[object]) -> dict[int, str]:
             if idx is not None:
                 mapping[idx] = canonical
                 break
+    # The 2019 to 2022 files label "Descrição do padrão (IPTU)" as a second "ACC (IPTU)".
+    # The real ACC (a year) is the last of the two.
+    acc = [i for i, h in enumerate(normalized) if h == "acc iptu"]
+    if len(acc) == 2 and "descricao_padrao" not in mapping.values():
+        mapping[acc[0]] = "descricao_padrao"
+        mapping[acc[1]] = "acc_iptu"
     return mapping
 
 

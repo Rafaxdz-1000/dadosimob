@@ -69,6 +69,16 @@ def workbook(tmp_path):
 
 
 @pytest.fixture
+def workbook_2019(tmp_path):
+    """2019 to 2022: the "Descrição do padrão" column is labeled as a second "ACC (IPTU)"."""
+    headers = ["ACC (IPTU)" if h == "Descrição do padrão (IPTU)" else h for h in HEADERS]
+    return _save(tmp_path / "itbi_2019.xlsx", [
+        ("JAN-2019", [headers, _row(1000100011, "R JUVENTUS", 500000.0, datetime(2019, 1, 10), 50, 1000,
+                                    "APARTAMENTO EM CONDOMÍNIO (EXCETO VAGA)")]),
+    ])
+
+
+@pytest.fixture
 def edge_workbook(tmp_path):
     """Quirks found in the official 2024 file."""
     return _save(tmp_path / "itbi_edge.xlsx", [
