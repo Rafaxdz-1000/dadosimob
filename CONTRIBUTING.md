@@ -51,11 +51,11 @@ Use os nomes de `sp.COLUMNS` sempre que o conceito existir na sua fonte: `valor_
 
 O mínimo para o pull request entrar:
 
-* `valor_transacao`: float, em reais
-* `data_transacao`: datetime
-* `codigo_ibge`: texto
+* `codigo_ibge`, em texto;
+* uma data: `data_transacao`; se a fonte só tiver a data de pagamento, `data_pagamento`; se só tiver o mês, `mes_referencia`;
+* um valor em reais: `valor_transacao` (o valor declarado); se a fonte não o publicar, `base_calculo` ou outro valor com nome próprio, como `valor_avaliacao`.
 
-Quando a fonte traz área e uso do imóvel, acrescente também `tipo_imovel` (`apartamento`, `casa`, `terreno`, `comercial`, `industrial`, `garagem` ou `outro`) e `preco_m2`, que fica vazio quando só uma fração do imóvel foi transmitida.
+Cada cidade publica um valor diferente, e eles não se comparam direto: diga no README qual é o da sua. Quando a fonte traz área e uso do imóvel, acrescente também `tipo_imovel` (`apartamento`, `casa`, `terreno`, `comercial`, `industrial`, `garagem` ou `outro`). `preco_m2` só existe quando há `valor_transacao`, e fica vazio quando só uma fração do imóvel foi transmitida.
 
 ### 3. Os testes
 

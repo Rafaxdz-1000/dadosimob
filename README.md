@@ -3,6 +3,7 @@
 **Dados públicos do mercado imobiliário brasileiro, prontos para análise.**
 *Brazilian public real estate data, ready for analysis. [English below](#english).*
 
+[![PyPI](https://img.shields.io/pypi/v/dadosimob.svg)](https://pypi.org/project/dadosimob/)
 [![CI](https://github.com/Rafaxdz-1000/dadosimob/actions/workflows/ci.yml/badge.svg)](https://github.com/Rafaxdz-1000/dadosimob/actions/workflows/ci.yml)
 [![Licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
 
@@ -11,10 +12,10 @@ Prefeituras e órgãos públicos publicam dados valiosos sobre imóveis, mas cad
 ## Instalação
 
 ```bash
-pip install git+https://github.com/Rafaxdz-1000/dadosimob
+pip install dadosimob
 ```
 
-O pacote ainda não está no PyPI; até lá, a instalação é direto do GitHub.
+Para a versão em desenvolvimento: `pip install git+https://github.com/Rafaxdz-1000/dadosimob`.
 
 ## Fontes disponíveis
 
@@ -22,7 +23,7 @@ O pacote ainda não está no PyPI; até lá, a instalação é direto do GitHub.
 |---|---|---|---|
 | `dadosimob.itbi.sp` | Transações com ITBI pago | Cidade de São Paulo, 2006 até hoje (atualização mensal) | [Secretaria Municipal da Fazenda](https://prefeitura.sp.gov.br/web/fazenda/w/acesso_a_informacao/31501) |
 
-Próximas fontes no [roadmap](#roadmap).
+Os 21 arquivos anuais publicados até agora (2006 a julho de 2026, 2.736.208 transações) são lidos por inteiro: todos os meses, com valor e data preenchidos em pelo menos 99,99% das linhas de cada ano. Próximas fontes no [roadmap](#roadmap).
 
 ## Uso rápido
 
@@ -61,7 +62,7 @@ Cada linha é uma Declaração de Transação Imobiliária (DTI) paga no mês de
 
 Números no formato brasileiro (`1.234,56`) e datas em texto ou no formato do Excel são convertidos automaticamente. `cep` (8 dígitos) e `sql` (11 dígitos) voltam como texto, com os zeros à esquerda que o Excel apaga.
 
-Algumas abas do arquivo oficial vêm sem a linha de cabeçalho (em 2024, janeiro e outubro). Nesses casos a biblioteca usa o cabeçalho das outras abas do mesmo arquivo. Se uma aba mensal não puder ser lida, ela gera um aviso (`logging.WARNING`) em vez de sumir em silêncio.
+Algumas abas do arquivo oficial vêm sem a linha de cabeçalho (em 2024, janeiro e outubro). Nesses casos a biblioteca usa o cabeçalho das outras abas do mesmo arquivo. Se uma aba mensal não puder ser lida, ela gera um aviso (`logging.WARNING`) em vez de sumir em silêncio. Nos arquivos de 2019 a 2022, a descrição do padrão vem rotulada como um segundo "ACC (IPTU)"; a biblioteca devolve cada dado na sua coluna.
 
 ### Boas práticas com o dado
 
@@ -75,12 +76,20 @@ Algumas abas do arquivo oficial vêm sem a linha de cabeçalho (em 2024, janeiro
 
 ## Roadmap
 
-* ITBI de outras capitais (Rio de Janeiro, Belo Horizonte, Porto Alegre)
+* ITBI de outras capitais que publicam uma linha por transação: Porto Alegre, Recife, Belo Horizonte, Fortaleza e Rio de Janeiro
 * Renda domiciliar por setor censitário (IBGE, Censo 2022)
 * Base CNPJ da Receita Federal com geocodificação por bairro
 * Admissões e desligamentos por município (CAGED)
 
-Quer ajudar? Veja [CONTRIBUTING.md](CONTRIBUTING.md). Novas cidades costumam ser uma ótima primeira contribuição.
+## Contribua
+
+Cada cidade é um módulo independente: dá para contribuir sem conhecer o resto do código.
+
+* [Tarefas para começar](https://github.com/Rafaxdz-1000/dadosimob/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+* [Cidades com a fonte oficial já conferida](https://github.com/Rafaxdz-1000/dadosimob/issues?q=is%3Aissue+is%3Aopen+label%3A%22nova+cidade%22)
+* [Guia de contribuição](CONTRIBUTING.md), com o passo a passo para adicionar uma cidade
+
+Conhece uma fonte pública que deveria estar aqui? [Sugira](https://github.com/Rafaxdz-1000/dadosimob/issues/new?template=nova-fonte.yml).
 
 ## Licença
 
@@ -95,7 +104,7 @@ Código sob [MIT](LICENSE). Os dados pertencem aos órgãos que os publicam; con
 The first source is **ITBI São Paulo**: the property transfer tax declarations paid in the city of São Paulo since 2006, published monthly by the city's Finance Department as yearly Excel files with one sheet per month and headers that drift over time. `dadosimob` finds the current file links, caches downloads, detects header rows (and reuses them for sheets published without one), maps columns to stable snake_case names, parses Brazilian number and date formats, keeps the leading zeros of zip codes and property IDs, classifies property types and computes price per m² for whole-property transfers.
 
 ```bash
-pip install git+https://github.com/Rafaxdz-1000/dadosimob   # not on PyPI yet
+pip install dadosimob
 ```
 
 ```python
@@ -105,4 +114,6 @@ df = sp.clean(sp.read(2024), only_sales=True)
 df.groupby("tipo_imovel")["preco_m2"].median()
 ```
 
-Column names are kept in Portuguese to match the source documentation. The area behind `preco_m2` is the built area from the property tax registry, not the usable area quoted in listings, and `bairro` is free text that is often empty. Contributions for other cities are very welcome.
+Column names are kept in Portuguese to match the source documentation. The area behind `preco_m2` is the built area from the property tax registry, not the usable area quoted in listings, and `bairro` is free text that is often empty.
+
+Each city is a self-contained module, so adding one needs no knowledge of the rest of the code. See the [good first issues](https://github.com/Rafaxdz-1000/dadosimob/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) and the [contributing guide](CONTRIBUTING.md) (in Portuguese; issues and pull requests in English are welcome).
