@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dadosimob"
+version = "0.1.0"
+description = "Dados públicos do mercado imobiliário brasileiro (ITBI e mais), prontos para análise em pandas."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Rafael Willians Pereira Ferreira" }]
+requires-python = ">=3.10"
+keywords = ["itbi", "imoveis", "real-estate", "brasil", "brazil", "dados-abertos", "open-data", "sao-paulo", "pandas"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Natural Language :: Portuguese (Brazilian)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = ["pandas>=2.0", "openpyxl>=3.1", "requests>=2.28"]
+
+[project.optional-dependencies]
+parquet = ["pyarrow>=14"]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+dadosimob = "dadosimob.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Rafaxdz-1000/dadosimob"
+Issues = "https://github.com/Rafaxdz-1000/dadosimob/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dadosimob"]
+
+[tool.pytest.ini_options]
+addopts = "-q --doctest-modules"
+testpaths = ["tests", "src/dadosimob"]
+markers = ["network: testes que acessam a internet (rode com -m network)"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"

@@ -1,0 +1,57 @@
+from datetime import datetime
+
+import pytest
+from openpyxl import Workbook
+
+HEADERS = [
+    "N° do Cadastro (SQL)", "Nome do Logradouro", "Número", "Complemento", "Bairro", "Referência",
+    "CEP", "Natureza de Transação", "Valor de Transação (declarado pelo contribuinte)",
+    "Data de Transação", "Valor Venal de Referência", "Proporção Transmitida (%)",
+    "Valor Venal de Referência (proporcional)", "Base de Cálculo adotada", "Tipo de Financiamento",
+    "Valor Financiado", "Cartório de Registro", "Matrícula do Imóvel", "Situação do SQL",
+    "Área do Terreno (m2)", "Testada (m)", "Fração Ideal", "Área Construída (m2)", "Uso (IPTU)",
+    "Descrição do uso (IPTU)", "Padrão (IPTU)", "Descrição do padrão (IPTU)", "ACC (IPTU)",
+]
+
+
+def _row(sql, rua, valor, data, area_c, area_t, uso, natureza="1.Compra e venda"):
+    venal = 400000.0
+    return [
+        sql, rua, 100, None, "MOOCA", None, 3104000, natureza, valor, data, venal, 100,
+        venal, valor, "Nenhum", 0, 7, 12345, "Normal", area_t, 10, 0.01, area_c, 64, uso,
+        "2B", "RESIDENCIAL VERTICAL - PADRÃO B", 2010,
+    ]
+
+
+@pytest.fixture
+def workbook(tmp_path):
+    """Workbook shaped like the official file: explanation sheet + monthly sheets."""
+    wb = Workbook()
+    info = wb.active
+    info.title = "EXPLICAÇÕES"
+    info.append(["Este arquivo traz os dados das DTIs pagas."])
+
+    jan = wb.create_sheet("JAN-2024")
+    jan.append(HEADERS)
+    jan.append(_row(1000100011, "R JUVENTUS", 500000.0, datetime(2023, 12, 20), 50, 1000,
+                    "APARTAMENTO EM CONDOMÍNIO (EXCETO VAGA)"))
+    jan.append(_row(1000100022, "R TAQUARI", "1.200.000,00", "15/01/2024", 150, 200, "RESIDÊNCIA"))
+    jan.append(_row(1000100033, "R ORATORIO", 300000.0, datetime(2024, 1, 5), 0, 250, "TERRENO"))
+    jan.append(_row(1000100044, "R ERRO", 1_000.0, datetime(2024, 1, 5), 40, 100, "LOJA"))  # too cheap
+    jan.append([None] * len(HEADERS))
+
+    fev = wb.create_sheet("FEV-2024")
+    fev.append(["Tabela de fevereiro"])  # title row above the header
+    fev.append(HEADERS)
+    fev.append(_row(1000100055, "R DA MOOCA", 800000.0, datetime(2024, 2, 1), 80, 1000,
+                    "APARTAMENTO EM CONDOMÍNIO (EXCETO VAGA)", natureza="3.Doação"))
+    fev.append(_row(1000100066, "R X", 900000.0, datetime(2024, 2, 1), 10, 100,
+                    "VAGA DE GARAGEM EM CONDOMÍNIO"))  # 90k/m²: plausible cap test
+
+    usos = wb.create_sheet("Tabela de USOS")
+    usos.append(["Código", "Descrição"])
+    usos.append([64, "APARTAMENTO"])
+
+    path = tmp_path / "itbi_2024.xlsx"
+    wb.save(path)
+    return path
