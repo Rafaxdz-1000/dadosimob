@@ -42,6 +42,28 @@ def test_monthly_sheet_that_cannot_be_read_is_skipped_with_a_warning(edge_workbo
     assert any(sheet in r.getMessage() for r in caplog.records if r.levelno == logging.WARNING)
 
 
+def test_unrecognized_header_warns_with_sheet_name(workbook, caplog):
+    from openpyxl import load_workbook
+
+    with caplog.at_level(logging.WARNING, logger="dadosimob"):
+        sp.read(workbook)
+    assert not any("cabeçalhos não reconhecidos" in record.getMessage() for record in caplog.records)
+
+    caplog.clear()
+    wb = load_workbook(workbook)
+    sheet = wb["JAN-2024"]
+    sheet.cell(row=1, column=sheet.max_column + 1, value="Nova coluna da Prefeitura")
+    wb.save(workbook)
+
+    with caplog.at_level(logging.WARNING, logger="dadosimob"):
+        sp.read(workbook)
+    assert any(
+        "JAN-2024" in record.getMessage() and "Nova coluna da Prefeitura" in record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+    )
+
+
 def test_padrao_description_labeled_as_acc_goes_to_its_own_column(workbook_2019):
     df = sp.read(workbook_2019)
     assert "descricao_padrao" in df.columns
