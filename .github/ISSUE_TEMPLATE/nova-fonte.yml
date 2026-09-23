@@ -1,0 +1,57 @@
+name: Nova fonte de dados
+description: Sugira uma cidade ou fonte pública para a biblioteca ler
+title: "Nova fonte: "
+labels: ["nova cidade"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Quanto mais precisa a informação sobre a fonte, mais rápido alguém consegue implementar.
+  - type: input
+    id: cidade
+    attributes:
+      label: Cidade ou órgão
+      placeholder: "Prefeitura de Belo Horizonte"
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link oficial
+      description: Página do governo onde o arquivo é publicado.
+      placeholder: "https://"
+    validations:
+      required: true
+  - type: dropdown
+    id: granularidade
+    attributes:
+      label: Granularidade
+      options:
+        - Uma linha por transação
+        - Agregado (por bairro, mês ou similar)
+        - Não sei
+    validations:
+      required: true
+  - type: input
+    id: formato
+    attributes:
+      label: Formato e período
+      placeholder: "xlsx, um arquivo por ano, de 2010 até hoje"
+  - type: textarea
+    id: campos
+    attributes:
+      label: Campos disponíveis
+      description: Valor, data, endereço, bairro, área, uso do imóvel. Se puder, cole o cabeçalho do arquivo.
+  - type: checkboxes
+    id: privacidade
+    attributes:
+      label: Privacidade
+      options:
+        - label: O arquivo não traz CPF, CNPJ de pessoa física nem nome das partes, ou essas colunas serão descartadas
+          required: true
+  - type: checkboxes
+    id: implementar
+    attributes:
+      label: Implementação
+      options:
+        - label: Quero abrir o pull request para esta fonte

@@ -1,0 +1,29 @@
+name: Problema
+description: Algo não funciona ou o dado veio errado
+labels: ["bug"]
+body:
+  - type: textarea
+    id: o-que
+    attributes:
+      label: O que aconteceu
+      description: E o que você esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduzir
+    attributes:
+      label: Como reproduzir
+      description: O menor código que mostra o problema.
+      render: python
+      placeholder: |
+        from dadosimob.itbi import sp
+        df = sp.read(2024)
+    validations:
+      required: true
+  - type: input
+    id: versoes
+    attributes:
+      label: Versões
+      description: 'Saída de: python -c "import dadosimob, pandas, sys; print(dadosimob.__version__, pandas.__version__, sys.version)"'
+    validations:
+      required: true
