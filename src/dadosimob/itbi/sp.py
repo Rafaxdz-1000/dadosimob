@@ -231,7 +231,9 @@ def _find_header(raw: pd.DataFrame, max_rows: int = 15) -> int | None:
     return None
 
 
-def _parse_sheet(raw: pd.DataFrame, period: date | None, header: list | None = None) -> pd.DataFrame | None:
+def _parse_sheet(
+    raw: pd.DataFrame, period: date | None, header: list | None = None, *, name: str | None = None
+) -> pd.DataFrame | None:
     """Parse one monthly sheet.
 
     ``header`` is used for sheets that have no header row of their own: the data
@@ -245,6 +247,9 @@ def _parse_sheet(raw: pd.DataFrame, period: date | None, header: list | None = N
     else:
         start = 0
     mapping = map_columns(header)
+    unmapped = [header[i] for i in range(len(header)) if i not in mapping and normalize_label(header[i])]
+    if unmapped:
+        log.warning("Aba %s: cabeçalhos não reconhecidos: %s", name or "?", ", ".join(str(h) for h in unmapped))
     body = raw.iloc[start:, list(mapping)].copy()
     body.columns = [mapping[i] for i in mapping]
     body = body.dropna(how="all")
@@ -272,7 +277,7 @@ def _first_header(sheets: dict[str, pd.DataFrame]) -> list | None:
 def _parse_headerless(raw: pd.DataFrame, period: date, header: list | None, name: str) -> pd.DataFrame | None:
     """Read a monthly sheet that lost its header row, if its layout matches the other sheets."""
     if header is not None and raw.shape[1] == len(header):
-        parsed = _parse_sheet(raw, period, header=header)
+        parsed = _parse_sheet(raw, period, header=header, name=name)
         if parsed is not None and not parsed.empty and parsed["valor_transacao"].notna().mean() >= 0.5:
             log.info("Aba %s sem cabeçalho: usando o cabeçalho das outras abas", name)
             return parsed
@@ -327,7 +332,7 @@ def read(
         period = sheet_period(str(name))
         if wanted and (period is None or period.month not in wanted):
             continue
-        parsed = _parse_sheet(raw, period)
+        parsed = _parse_sheet(raw, period, name=str(name))
         if parsed is None and period is not None:
             parsed = _parse_headerless(raw, period, header, str(name))
         if parsed is None:
