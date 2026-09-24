@@ -52,16 +52,22 @@ def test_unrecognized_header_warns_with_sheet_name(workbook, caplog):
     caplog.clear()
     wb = load_workbook(workbook)
     sheet = wb["JAN-2024"]
-    sheet.cell(row=1, column=sheet.max_column + 1, value="Nova coluna da Prefeitura")
+    blank_column = sheet.max_column + 1
+    sheet.cell(row=2, column=blank_column, value="sem cabeçalho")
+    sheet.cell(row=1, column=blank_column + 1, value="Nova coluna da Prefeitura")
     wb.save(workbook)
 
     with caplog.at_level(logging.WARNING, logger="dadosimob"):
         sp.read(workbook)
-    assert any(
-        "JAN-2024" in record.getMessage() and "Nova coluna da Prefeitura" in record.getMessage()
+    unmapped_warnings = [
+        record.getMessage()
         for record in caplog.records
-        if record.levelno == logging.WARNING
-    )
+        if record.levelno == logging.WARNING and "cabeçalhos não reconhecidos" in record.getMessage()
+    ]
+    assert len(unmapped_warnings) == 1
+    assert "JAN-2024" in unmapped_warnings[0]
+    assert "Nova coluna da Prefeitura" in unmapped_warnings[0]
+    assert "nan" not in unmapped_warnings[0].lower()
 
 
 def test_padrao_description_labeled_as_acc_goes_to_its_own_column(workbook_2019):
