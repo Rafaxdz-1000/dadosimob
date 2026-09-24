@@ -247,7 +247,11 @@ def _parse_sheet(
     else:
         start = 0
     mapping = map_columns(header)
-    unmapped = [header[i] for i in range(len(header)) if i not in mapping and normalize_label(header[i])]
+    unmapped = [
+        header[i]
+        for i in range(len(header))
+        if i not in mapping and not pd.isna(header[i]) and normalize_label(header[i])
+    ]
     if unmapped:
         log.warning("Aba %s: cabeçalhos não reconhecidos: %s", name or "?", ", ".join(str(h) for h in unmapped))
     body = raw.iloc[start:, list(mapping)].copy()
