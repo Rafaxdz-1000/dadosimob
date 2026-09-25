@@ -256,6 +256,9 @@ def _parse_sheet(raw: pd.DataFrame, period: date | None, header: list | None = N
     for col in ("sql", "cep", "numero", "uso_iptu", "padrao_iptu", "acc_iptu", "cartorio", "matricula"):
         if col in body:
             body[col] = body[col].map(lambda v, w=CODE_WIDTHS.get(col): _as_code(v, w)).astype("string")
+    for col in body.select_dtypes(include=["object", "string"]).columns:
+        text = body[col].astype("string").str.strip()
+        body[col] = text.mask(text.eq(""), pd.NA)
     body.insert(0, "mes_referencia", pd.Timestamp(period) if period else pd.NaT)
     return body
 

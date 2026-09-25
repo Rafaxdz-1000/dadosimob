@@ -46,7 +46,13 @@ def workbook(tmp_path):
     jan.append(HEADERS)
     jan.append(_row(1000100011, "R JUVENTUS", 500000.0, datetime(2023, 12, 20), 50, 1000,
                     "APARTAMENTO EM CONDOMÍNIO (EXCETO VAGA)"))
-    jan.append(_row(1000100022, "R TAQUARI", "1.200.000,00", "15/01/2024", 150, 200, "RESIDÊNCIA"))
+    padded_row = _row(1000100022, " R TAQUARI ", "1.200.000,00", "15/01/2024", 150, 200,
+                      " RESIDÊNCIA ")
+    padded_row[3] = "   "  # A text field containing only spaces should be missing.
+    padded_row[4] = " MOOCA "
+    padded_row[7] = " 1.Compra e venda "
+    padded_row[26] = " RESIDENCIAL VERTICAL - PADRÃO B "
+    jan.append(padded_row)
     jan.append(_row(1000100033, "R ORATORIO", 300000.0, datetime(2024, 1, 5), 0, 250, "TERRENO"))
     jan.append(_row(1000100044, "R ERRO", 1_000.0, datetime(2024, 1, 5), 40, 100, "LOJA"))  # too cheap
     jan.append([None] * len(HEADERS))
