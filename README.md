@@ -62,6 +62,8 @@ Cada linha é uma Declaração de Transação Imobiliária (DTI) paga no mês de
 
 Números no formato brasileiro (`1.234,56`) e datas em texto ou no formato do Excel são convertidos automaticamente. `cep` (8 dígitos) e `sql` (11 dígitos) voltam como texto, com os zeros à esquerda que o Excel apaga.
 
+Nas colunas de texto, espaços no começo e no fim são removidos; campos compostos só por espaços viram ausentes (`<NA>`).
+
 Algumas abas do arquivo oficial vêm sem a linha de cabeçalho (em 2024, janeiro e outubro). Nesses casos a biblioteca usa o cabeçalho das outras abas do mesmo arquivo. Se uma aba mensal não puder ser lida, ela gera um aviso (`logging.WARNING`) em vez de sumir em silêncio. Nos arquivos de 2019 a 2022, a descrição do padrão vem rotulada como um segundo "ACC (IPTU)"; a biblioteca devolve cada dado na sua coluna.
 
 ### Boas práticas com o dado

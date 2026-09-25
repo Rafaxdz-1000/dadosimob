@@ -19,6 +19,17 @@ def test_read_workbook(workbook):
     assert (df["codigo_ibge"] == "3550308").all()
 
 
+def test_text_columns_are_stripped_and_blank_text_becomes_missing(workbook):
+    row = sp.read(workbook).iloc[1]
+
+    assert row["logradouro"] == "R TAQUARI"
+    assert pd.isna(row["complemento"])
+    assert row["bairro"] == "MOOCA"
+    assert row["natureza_transacao"] == "1.Compra e venda"
+    assert row["descricao_uso"] == "RESIDÊNCIA"
+    assert row["descricao_padrao"] == "RESIDENCIAL VERTICAL - PADRÃO B"
+
+
 def test_codes_keep_leading_zeros(workbook):
     row = sp.read(workbook).iloc[1]
     assert row["sql"] == "01000100022"  # the SQL has 11 digits
